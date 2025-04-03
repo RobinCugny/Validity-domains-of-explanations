@@ -1,0 +1,96 @@
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import pickle
+from dash import Dash,html,dcc, Input, Output
+import numpy as np
+
+data=pd.read_csv("data/flame.txt",sep="\t",header=None)
+data.columns = ["x0","x1","label"]
+Z = pickle.load(open("data/Z.p", "rb"))
+xx = pickle.load(open("data/xx.p", "rb"))
+yy = pickle.load(open("data/yy.p", "rb"))
+exp_X = pickle.load(open("data/exp_X.p", "rb"))
+x_0="x0"
+x_1="x1"
+label="label"
+feature_names = [x_0,x_1]
+
+# data=pd.read_csv("data/pima/biased_pima.csv")
+# Z = pickle.load(open("data/pima/Z.p", "rb"))
+# xx = pickle.load(open("data/pima/xx.p", "rb"))
+# yy = pickle.load(open("data/pima/yy.p", "rb"))
+# exp_X = pickle.load(open("data/pima/exp_X.p", "rb"))
+# x_0="Glucose"
+# x_1="BloodPressure"
+# feature_names=['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin',
+#        'BMI', 'DiabetesPedigreeFunction', 'Age']
+# label="Outcome"
+
+app = Dash(__name__)
+
+app.layout = html.Div([
+    dcc.Graph(id='graph',style={'width': '120vh', 'height': '90vh'}),
+    dcc.Graph(id='graph-exp',style={'width': '120vh', 'height': '90vh'}),
+])
+
+
+@app.callback(
+    Output('graph', 'figure'),
+    Output('graph-exp', 'figure'),
+    Input('graph', 'clickData'))
+def update_figure(input_value):
+    if input_value is not None:
+        idx=input_value['points'][0]['pointNumber']
+        print("\n")
+        print(data.iloc[idx])
+        print("explanation",exp_X[idx])
+        print(data.iloc[29])
+        print(data.iloc[138])
+
+    else:
+        idx=0
+    trace1 = go.Contour(
+            z=Z[idx],
+            x=xx[0,:],
+            y=yy[:,0],
+            colorscale='Hot',
+            opacity=0.6
+        )
+    col = data[label].copy()
+    col[idx]=3
+    trace2 = go.Scatter(x=data[x_0],
+            y=data[x_1],
+            mode='markers',
+            marker=dict(size=10,color=col),
+            marker_line_width=2,
+            text=exp_X
+            )
+    fig = make_subplots()
+    fig.add_trace(trace1)
+    fig.add_trace(trace2)
+    fig.update_layout(
+    title="Validity domain of explanations",
+    xaxis_title=x_0,
+    yaxis_title=x_1,
+)
+    order = np.argsort(np.abs(exp_X[idx]))
+    fig2 = go.Figure()
+    fig2.add_trace(go.Bar(
+        y=np.asarray(feature_names)[order],
+        x=np.asarray(exp_X[idx])[order],
+        name='Explanation',
+        orientation='h',
+        marker=dict(
+        color=np.asarray(exp_X[idx])[order]
+        )))
+    fig2.update_layout(
+    title="Selected explanation",
+    xaxis_title="Shap value",
+    yaxis_title="features",
+)
+
+    return fig,fig2
+
+if __name__ == '__main__':
+    app.run_server(debug=True)

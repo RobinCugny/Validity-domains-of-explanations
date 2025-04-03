@@ -1,0 +1,6 @@
+numpy==1.21.2
+tqdm==4.60.0
+matplotlib==3.7.0
+pandas==1.5.3
+scikit_learn==1.2.1
+shap==0.41.0
